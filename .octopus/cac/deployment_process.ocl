@@ -6,6 +6,7 @@ step "run-a-script-write-out-deployment-started" {
 
     action "run-a-script" {
         action_type = "Octopus.Script"
+        channels = ["guided-failures"]
         notes = <<-EOT
                 Uses PowerShell
                 Writes out "Deployment Started"
@@ -31,6 +32,7 @@ step "run-a-script" {
 
     action "remove-from-load-balancer" {
         action_type = "Octopus.Script"
+        channels = ["guided-failures"]
         environments = ["stage", "prod"]
         name = "Remove from Load Balancer"
         properties = {
@@ -48,6 +50,7 @@ step "run-a-script" {
 
     action "deploy-a-package" {
         action_type = "Octopus.TentaclePackage"
+        channels = ["guided-failures"]
         name = "Deploy a Package: Trident Web"
         notes = "Deploys the package \"Trident.Web\" to all."
         properties = {
@@ -71,6 +74,7 @@ step "run-a-script" {
 
     action "add-to-load-balancer" {
         action_type = "Octopus.Script"
+        channels = ["guided-failures"]
         environments = ["stage", "prod"]
         name = "Add to Load Balancer"
         properties = {
@@ -95,6 +99,7 @@ step "run-a-script-write-out-deployment-finished" {
 
     action "run-a-script-write-out-deployment-started-clone-1" {
         action_type = "Octopus.Script"
+        channels = ["guided-failures"]
         notes = <<-EOT
                 Uses PowerShell
                 Writes out "Deployment Started"
@@ -117,6 +122,7 @@ step "send-an-email" {
 
     action {
         action_type = "Octopus.Email"
+        channels = ["guided-failures"]
         properties = {
             Octopus.Action.Email.Body = "You can view the the deployment here: #{Octopus.Web.ServerUri}/app#/#{Octopus.Space.Id}/tasks/#{Octopus.Task.Id}"
             Octopus.Action.Email.Subject = "#{Email.Subject.Code}"
@@ -134,6 +140,7 @@ step "slack-send-simple-notification" {
     }
 
     action {
+        channels = ["guided-failures"]
         properties = {
             Octopus.Action.RunOnServer = "false"
             Octopus.Action.Template.Id = "ActionTemplates-1"
