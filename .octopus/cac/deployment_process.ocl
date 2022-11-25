@@ -1,0 +1,151 @@
+step "run-a-script-write-out-deployment-started" {
+    name = "Run a Script - Write Out: Deployment Started"
+    properties = {
+        Octopus.Action.TargetRoles = "trident-web"
+    }
+
+    action "run-a-script" {
+        action_type = "Octopus.Script"
+        notes = <<-EOT
+                Uses PowerShell
+                Writes out "Deployment Started"
+                Runs on all targets with the role "trident-web"
+                Deploys to all environments
+            EOT
+        properties = {
+            Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Script.ScriptBody = "Write-Highlight \"Deployment Started\""
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "PowerShell"
+        }
+        worker_pool_variable = ""
+    }
+}
+
+step "run-a-script" {
+    name = "Deploy Trident Website"
+    properties = {
+        Octopus.Action.MaxParallelism = "1"
+        Octopus.Action.TargetRoles = "trident-web"
+    }
+
+    action "remove-from-load-balancer" {
+        action_type = "Octopus.Script"
+        environments = ["stage", "prod"]
+        name = "Remove from Load Balancer"
+        properties = {
+            Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                $machineName = $OctopusParameters["Octopus.Machine.Name"]
+                
+                Write-Highlight "Remove $machineName from the Load Balancer."
+            EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "PowerShell"
+        }
+        worker_pool_variable = ""
+    }
+
+    action "deploy-a-package" {
+        action_type = "Octopus.TentaclePackage"
+        name = "Deploy a Package: Trident Web"
+        notes = "Deploys the package \"Trident.Web\" to all."
+        properties = {
+            Octopus.Action.EnabledFeatures = "Octopus.Features.JsonConfigurationVariables"
+            Octopus.Action.Package.DownloadOnTentacle = "False"
+            Octopus.Action.Package.FeedId = "octopus-server-built-in"
+            Octopus.Action.Package.JsonConfigurationVariablesTargets = "appSettings.json"
+            Octopus.Action.Package.PackageId = "Trident.Web"
+        }
+        worker_pool_variable = ""
+
+        packages {
+            acquisition_location = "Server"
+            feed = "octopus-server-built-in"
+            package_id = "Trident.Web"
+            properties = {
+                SelectionMode = "immediate"
+            }
+        }
+    }
+
+    action "add-to-load-balancer" {
+        action_type = "Octopus.Script"
+        environments = ["stage", "prod"]
+        name = "Add to Load Balancer"
+        properties = {
+            Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Script.ScriptBody = <<-EOT
+                $machineName = $OctopusParameters["Octopus.Machine.Name"]
+                
+                Write-Host "Add $machineName to the Load Balancer."
+            EOT
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "PowerShell"
+        }
+        worker_pool_variable = ""
+    }
+}
+
+step "run-a-script-write-out-deployment-finished" {
+    name = "Run a Script - Write Out: Deployment Finished"
+    properties = {
+        Octopus.Action.TargetRoles = "trident-web"
+    }
+
+    action "run-a-script-write-out-deployment-started-clone-1" {
+        action_type = "Octopus.Script"
+        notes = <<-EOT
+                Uses PowerShell
+                Writes out "Deployment Started"
+                Runs on all targets with the role "trident-web"
+                Deploys to all environments
+            EOT
+        properties = {
+            Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Script.ScriptBody = "Write-Highlight \"Deployment Finished\""
+            Octopus.Action.Script.ScriptSource = "Inline"
+            Octopus.Action.Script.Syntax = "PowerShell"
+        }
+        worker_pool_variable = ""
+    }
+}
+
+step "send-an-email" {
+    condition = "Always"
+    name = "Send an Email"
+
+    action {
+        action_type = "Octopus.Email"
+        properties = {
+            Octopus.Action.Email.Body = "You can view the the deployment here: #{Octopus.Web.ServerUri}/app#/#{Octopus.Space.Id}/tasks/#{Octopus.Task.Id}"
+            Octopus.Action.Email.Subject = "#{Email.Subject.Code}"
+            Octopus.Action.Email.ToTeamIds = "trident-notifications"
+        }
+        worker_pool_variable = ""
+    }
+}
+
+step "slack-send-simple-notification" {
+    condition = "Failure"
+    name = "Slack - Send Simple Notification"
+    properties = {
+        Octopus.Action.TargetRoles = "trident-web"
+    }
+
+    action {
+        properties = {
+            Octopus.Action.RunOnServer = "false"
+            Octopus.Action.Template.Id = "ActionTemplates-1"
+            Octopus.Action.Template.Version = "14"
+            ssn_Channel = "trident-deployment-notifications"
+            ssn_Color = "danger"
+            ssn_HookUrl = "#{Notification.Slack.Webhook.Url}"
+            ssn_IconUrl = "https://octopus.com/content/resources/favicon.png"
+            ssn_Message = "#{Notification.Body.Text}"
+            ssn_Title = "#{Notification.Subject.Text}"
+            ssn_Username = "Trident Project in Octopus Deploy"
+        }
+        worker_pool_variable = ""
+    }
+}
